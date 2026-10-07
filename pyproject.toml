@@ -1,0 +1,13 @@
+[project]
+name = "kanazawa-trip"
+version = "0.1.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "fastapi>=0.142.2",
+]
+
+[dependency-groups]
+dev = [
+    "workers-py>=1.17.7",
+    "workers-runtime-sdk>=1.9.3",
+]
