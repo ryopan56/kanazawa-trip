@@ -1,0 +1,14 @@
+{
+  "name": "kanazawa-trip",
+  "main": "backend/src/main.py",
+  "compatibility_date": "2026-10-07",
+  "compatibility_flags": ["python_workers"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kanazawa-trip-db",
+      "database_id": "5e2dccd2-8b8f-4268-bc5b-6033dd4f9e80",
+      "migrations_dir": "backend/migrations",
+    },
+  ],
+}
