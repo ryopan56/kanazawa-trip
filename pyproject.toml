@@ -11,3 +11,7 @@ dev = [
     "workers-py>=1.17.7",
     "workers-runtime-sdk>=1.9.3",
 ]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["I001"]
