@@ -1,19 +1,13 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from workers import asgi
+from api.trips import router as trip_router
 
 app = FastAPI()
 
 @app.get("/api/")
 async def root():
-  return {"mesage": "OK"}
+  return {"message": "OK"}
 
-@app.get("/api/trips")
-async def get_trips(request: Request):
-  env = request.scope["env"]
-
-  result = await env.DB.prepare(
-    "SELECT id, start_date, end_date FROM trips ORDER BY start_date, id").run()
-
-  return result.results
+app.include_router(trip_router)
   
 Default = asgi.entrypoint(app)
