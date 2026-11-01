@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Trip, CreateTrip, UpdateTrip } from "../types/trip";
-import { createTrip, getTrips, updateTrip } from "../api/trips";
+import { createTrip, getTrips, updateTrip, deleteTrip } from "../api/trips";
 import { useFormStatus } from "react-dom";
 
 function PostSubmitButton() {
@@ -31,6 +31,8 @@ export default function TripsPage() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletingTripId, setDeletingTripId] = useState<number | null>(null);
 
   useEffect(() => {
     async function loadTrips() {
@@ -119,6 +121,36 @@ export default function TripsPage() {
     }
   }
 
+  async function handleDelete(tripId: number) {
+    setDeleteError(null);
+
+    try {
+      setDeletingTripId(tripId);
+      try {
+        await deleteTrip(tripId);
+        if (tripId === editingTrip?.id) {
+          setEditingTrip(null);
+        }
+      } catch (errorMessage) {
+        console.log(errorMessage);
+        setDeleteError("旅行を削除できませんでした");
+        return;
+      }
+
+      try {
+        const data: Trip[] = await getTrips();
+        setTrips(data);
+      } catch (errorMessage) {
+        console.error(errorMessage);
+        setDeleteError(
+          "指定の旅行を削除しましたが、旅行一覧を取得できませんでした。再度削除せず、ページを再読み込みしてください。",
+        );
+      }
+    } finally {
+      setDeletingTripId(null);
+    }
+  }
+
   return (
     <>
       <ul>
@@ -131,13 +163,29 @@ export default function TripsPage() {
                 setEditingTrip(trip);
                 setUpdateError(null);
                 setCreateOpen(false);
+                setDeleteError(null);
               }}
             >
               編集
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                const confirmed = window.confirm(
+                  `${trip.name}を削除しますか？`,
+                );
+                if (confirmed) {
+                  handleDelete(trip.id);
+                }
+              }}
+              disabled={deletingTripId !== null}
+            >
+              {deletingTripId === trip.id ? "削除中" : "削除"}
+            </button>
           </li>
         ))}
       </ul>
+      <div>{deleteError && <p style={{ color: "red" }}>{deleteError}</p>}</div>
 
       {editingTrip && (
         <form action={handleUpdateAction} key={editingTrip.id}>
@@ -202,6 +250,7 @@ export default function TripsPage() {
           setCreateOpen(!isCreateOpen);
           setCreateError(null);
           setEditingTrip(null);
+          setDeleteError(null);
         }}
       >
         新規旅行
