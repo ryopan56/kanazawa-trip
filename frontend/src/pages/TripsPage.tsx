@@ -1,38 +1,29 @@
 import { useEffect, useState } from "react";
 import type { Trip, CreateTrip, UpdateTrip } from "../types/trip";
 import { createTrip, getTrips, updateTrip, deleteTrip } from "../api/trips";
-import { useFormStatus } from "react-dom";
-
-function PostSubmitButton() {
-  const { pending } = useFormStatus();
-
-  return (
-    <button type="submit" disabled={pending}>
-      {pending ? "作成中..." : "作成"}
-    </button>
-  );
-}
-
-function PatchSubmitButton() {
-  const { pending } = useFormStatus();
-
-  return (
-    <button type="submit" disabled={pending}>
-      {pending ? "更新中..." : "更新"}
-    </button>
-  );
-}
 
 export default function TripsPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const [isCreateOpen, setCreateOpen] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateTrip>({
+    name: "",
+    start_date: "",
+    end_date: "",
+  });
+
+  const [editTrip, setEditTrip] = useState<Trip | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deletingTripId, setDeletingTripId] = useState<number | null>(null);
+
+  const isBusy = isCreating || isUpdating || deletingTripId !== null;
 
   useEffect(() => {
     async function loadTrips() {
@@ -60,6 +51,7 @@ export default function TripsPage() {
 
   async function handleFormAction(formData: FormData) {
     setCreateError(null);
+    setIsCreating(true);
 
     const rawData = Object.fromEntries(formData.entries());
 
@@ -70,66 +62,81 @@ export default function TripsPage() {
     };
 
     try {
-      await createTrip(newTrip);
-    } catch (errorMessage) {
-      console.log(errorMessage);
-      setCreateError("旅行を追加できませんでした");
-      return;
-    }
+      try {
+        await createTrip(newTrip);
+      } catch (errorMessage) {
+        console.log(errorMessage);
+        setCreateError("旅行を追加できませんでした");
+        return;
+      }
 
-    try {
-      const data: Trip[] = await getTrips();
-      setTrips(data);
-      setCreateOpen(false);
-    } catch (errorMessage) {
-      console.error(errorMessage);
-      setCreateError(
-        "旅行を追加しましたが、旅行一覧を取得できませんでした。再度旅行を作成せず、ページを再読み込みしてください。",
-      );
+      try {
+        const data: Trip[] = await getTrips();
+        setTrips(data);
+      } catch (errorMessage) {
+        console.error(errorMessage);
+        setCreateError(
+          "旅行を追加しましたが、旅行一覧を取得できませんでした。再度旅行を作成せず、ページを再読み込みしてください。",
+        );
+      } finally {
+        setCreateOpen(false);
+        setCreateForm({
+          name: "",
+          start_date: "",
+          end_date: "",
+        });
+      }
+    } finally {
+      setIsCreating(false);
     }
   }
 
-  async function handleUpdateAction(formData: FormData) {
+  async function handleUpdateAction() {
     setUpdateError(null);
-    if (!editingTrip) return;
+    if (!editTrip) return;
 
-    const rawData = Object.fromEntries(formData.entries());
+    setIsUpdating(true);
 
     const updateData: UpdateTrip = {
-      name: String(rawData.name),
-      start_date: String(rawData.start_date),
-      end_date: String(rawData.end_date),
+      name: editTrip.name,
+      start_date: editTrip.start_date,
+      end_date: editTrip.end_date,
     };
 
     try {
-      await updateTrip(editingTrip.id, updateData);
-    } catch (errorMessage) {
-      console.log(errorMessage);
-      setUpdateError("旅行を編集できませんでした");
-      return;
-    }
+      try {
+        await updateTrip(editTrip.id, updateData);
+      } catch (errorMessage) {
+        console.log(errorMessage);
+        setUpdateError("旅行を編集できませんでした");
+        return;
+      }
 
-    try {
-      const data: Trip[] = await getTrips();
-      setTrips(data);
-      setEditingTrip(null);
-    } catch (errorMessage) {
-      console.error(errorMessage);
-      setUpdateError(
-        "旅行を編集しましたが、旅行一覧を取得できませんでした。再度更新せず、ページを再読み込みしてください。",
-      );
+      try {
+        const data: Trip[] = await getTrips();
+        setTrips(data);
+      } catch (errorMessage) {
+        console.error(errorMessage);
+        setUpdateError(
+          "旅行を編集しましたが、旅行一覧を取得できませんでした。再度更新せず、ページを再読み込みしてください。",
+        );
+      } finally {
+        setEditTrip(null);
+      }
+    } finally {
+      setIsUpdating(false);
     }
   }
 
   async function handleDelete(tripId: number) {
     setDeleteError(null);
+    setDeletingTripId(tripId);
 
     try {
-      setDeletingTripId(tripId);
       try {
         await deleteTrip(tripId);
-        if (tripId === editingTrip?.id) {
-          setEditingTrip(null);
+        if (tripId === editTrip?.id) {
+          setEditTrip(null);
         }
       } catch (errorMessage) {
         console.log(errorMessage);
@@ -160,11 +167,13 @@ export default function TripsPage() {
             <button
               type="button"
               onClick={() => {
-                setEditingTrip(trip);
+                setEditTrip({ ...trip });
                 setUpdateError(null);
                 setCreateOpen(false);
+                setCreateError(null);
                 setDeleteError(null);
               }}
+              disabled={isBusy}
             >
               編集
             </button>
@@ -178,7 +187,7 @@ export default function TripsPage() {
                   handleDelete(trip.id);
                 }
               }}
-              disabled={deletingTripId !== null}
+              disabled={isBusy}
             >
               {deletingTripId === trip.id ? "削除中" : "削除"}
             </button>
@@ -187,8 +196,8 @@ export default function TripsPage() {
       </ul>
       <div>{deleteError && <p style={{ color: "red" }}>{deleteError}</p>}</div>
 
-      {editingTrip && (
-        <form action={handleUpdateAction} key={editingTrip.id}>
+      {editTrip && (
+        <form action={handleUpdateAction}>
           <div>
             <h3>旅行を編集する</h3>
           </div>
@@ -198,7 +207,18 @@ export default function TripsPage() {
               <input
                 type="text"
                 name="name"
-                defaultValue={editingTrip.name}
+                value={editTrip.name}
+                disabled={isBusy}
+                onChange={(e) => {
+                  setEditTrip((prev) => {
+                    if (prev !== null) {
+                      return {
+                        ...prev,
+                        name: e.target.value,
+                      };
+                    } else return null;
+                  });
+                }}
                 required
               />
             </label>
@@ -210,8 +230,19 @@ export default function TripsPage() {
               <input
                 type="date"
                 name="start_date"
-                defaultValue={editingTrip.start_date}
+                value={editTrip.start_date}
+                disabled={isBusy}
                 required
+                onChange={(e) => {
+                  setEditTrip((prev) => {
+                    if (prev !== null) {
+                      return {
+                        ...prev,
+                        start_date: e.target.value,
+                      };
+                    } else return null;
+                  });
+                }}
               />
             </label>
           </div>
@@ -222,36 +253,50 @@ export default function TripsPage() {
               <input
                 type="date"
                 name="end_date"
-                defaultValue={editingTrip.end_date}
+                value={editTrip.end_date}
+                disabled={isBusy}
                 required
+                onChange={(e) => {
+                  setEditTrip((prev) => {
+                    if (prev !== null) {
+                      return {
+                        ...prev,
+                        end_date: e.target.value,
+                      };
+                    } else return null;
+                  });
+                }}
               />
             </label>
           </div>
           <div>
-            <div>
-              {updateError && <p style={{ color: "red" }}>{updateError}</p>}
-            </div>
-            <PatchSubmitButton />
+            <button type="submit" disabled={isBusy}>
+              {isUpdating ? "更新中" : "更新"}
+            </button>
             <button
               type="button"
               onClick={() => {
-                setEditingTrip(null);
+                setEditTrip(null);
               }}
+              disabled={isBusy}
             >
               キャンセル
             </button>
           </div>
         </form>
       )}
+      {updateError && <p style={{ color: "red" }}>{updateError}</p>}
 
       <button
         type="button"
         onClick={() => {
           setCreateOpen(!isCreateOpen);
           setCreateError(null);
-          setEditingTrip(null);
+          setEditTrip(null);
+          setUpdateError(null);
           setDeleteError(null);
         }}
+        disabled={isBusy}
       >
         新規旅行
       </button>
@@ -265,7 +310,17 @@ export default function TripsPage() {
                 type="text"
                 name="name"
                 placeholder="旅行名を入力"
+                value={createForm.name}
+                disabled={isBusy}
                 required
+                onChange={(e) => {
+                  setCreateForm((prev) => {
+                    return {
+                      ...prev,
+                      name: e.target.value,
+                    };
+                  });
+                }}
               />
             </label>
           </div>
@@ -273,22 +328,50 @@ export default function TripsPage() {
           <div>
             <label>
               旅行開始日：
-              <input type="date" name="start_date" required />
+              <input
+                type="date"
+                name="start_date"
+                value={createForm.start_date}
+                disabled={isBusy}
+                required
+                onChange={(e) => {
+                  setCreateForm((prev) => {
+                    return {
+                      ...prev,
+                      start_date: e.target.value,
+                    };
+                  });
+                }}
+              />
             </label>
           </div>
 
           <div>
             <label>
               旅行終了日：
-              <input type="date" name="end_date" required />
+              <input
+                type="date"
+                name="end_date"
+                value={createForm.end_date}
+                disabled={isBusy}
+                required
+                onChange={(e) => {
+                  setCreateForm((prev) => {
+                    return {
+                      ...prev,
+                      end_date: e.target.value,
+                    };
+                  });
+                }}
+              />
             </label>
           </div>
-          <div>
-            {createError && <p style={{ color: "red" }}>{createError}</p>}
-          </div>
-          <PostSubmitButton />
+          <button type="submit" disabled={isBusy}>
+            {isCreating ? "作成中" : "作成"}
+          </button>
         </form>
       )}
+      {createError && <p style={{ color: "red" }}>{createError}</p>}
     </>
   );
 }
