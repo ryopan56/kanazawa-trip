@@ -49,21 +49,13 @@ export default function TripsPage() {
     return <p>{error}</p>;
   }
 
-  async function handleFormAction(formData: FormData) {
+  async function handleCreateSubmit() {
     setCreateError(null);
     setIsCreating(true);
 
-    const rawData = Object.fromEntries(formData.entries());
-
-    const newTrip: CreateTrip = {
-      name: String(rawData.name),
-      start_date: String(rawData.start_date),
-      end_date: String(rawData.end_date),
-    };
-
     try {
       try {
-        await createTrip(newTrip);
+        await createTrip(createForm);
       } catch (errorMessage) {
         console.log(errorMessage);
         setCreateError("旅行を追加できませんでした");
@@ -91,7 +83,7 @@ export default function TripsPage() {
     }
   }
 
-  async function handleUpdateAction() {
+  async function handleUpdateSubmit() {
     setUpdateError(null);
     if (!editTrip) return;
 
@@ -197,7 +189,12 @@ export default function TripsPage() {
       <div>{deleteError && <p style={{ color: "red" }}>{deleteError}</p>}</div>
 
       {editTrip && (
-        <form action={handleUpdateAction}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleUpdateSubmit();
+          }}
+        >
           <div>
             <h3>旅行を編集する</h3>
           </div>
@@ -302,7 +299,12 @@ export default function TripsPage() {
       </button>
 
       {isCreateOpen && (
-        <form action={handleFormAction}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleCreateSubmit();
+          }}
+        >
           <div>
             <label>
               旅行名：
