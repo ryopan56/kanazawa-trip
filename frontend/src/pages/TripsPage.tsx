@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import type { Trip, CreateTrip, UpdateTrip } from "../types/trip";
 import { createTrip, getTrips, updateTrip, deleteTrip } from "../api/trips";
+import { useNavigate } from "react-router";
+import { logoutUser } from "../api/auth";
 
 export default function TripsPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const [isCreateOpen, setCreateOpen] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -23,7 +26,11 @@ export default function TripsPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deletingTripId, setDeletingTripId] = useState<number | null>(null);
 
-  const isBusy = isCreating || isUpdating || deletingTripId !== null;
+  const [isLogout, setIsLogout] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+
+  const isBusy =
+    isCreating || isUpdating || isLogout || deletingTripId !== null;
 
   useEffect(() => {
     async function loadTrips() {
@@ -32,6 +39,13 @@ export default function TripsPage() {
         setTrips(data);
       } catch (errorMessage) {
         console.error(errorMessage);
+        // JWTなし/有効期限切れの場合`/login` に遷移させる
+        if (errorMessage instanceof Error) {
+          if (errorMessage.message === "HTTP 401") {
+            navigate("/login", { replace: true });
+            return;
+          }
+        }
         setError("旅行一覧を取得できませんでした");
       } finally {
         setLoading(false);
@@ -39,7 +53,7 @@ export default function TripsPage() {
     }
 
     loadTrips();
-  }, []);
+  }, [navigate]);
 
   if (loading) {
     return <p>読み込み中</p>;
@@ -57,7 +71,14 @@ export default function TripsPage() {
       try {
         await createTrip(createForm);
       } catch (errorMessage) {
-        console.log(errorMessage);
+        console.error(errorMessage);
+        // JWTなし/有効期限切れの場合`/login` に遷移させる
+        if (errorMessage instanceof Error) {
+          if (errorMessage.message === "HTTP 401") {
+            navigate("/login", { replace: true });
+            return;
+          }
+        }
         setCreateError("旅行を追加できませんでした");
         return;
       }
@@ -67,6 +88,13 @@ export default function TripsPage() {
         setTrips(data);
       } catch (errorMessage) {
         console.error(errorMessage);
+        // JWTなし/有効期限切れの場合`/login` に遷移させる
+        if (errorMessage instanceof Error) {
+          if (errorMessage.message === "HTTP 401") {
+            navigate("/login", { replace: true });
+            return;
+          }
+        }
         setCreateError(
           "旅行を追加しましたが、旅行一覧を取得できませんでした。再度旅行を作成せず、ページを再読み込みしてください。",
         );
@@ -99,7 +127,14 @@ export default function TripsPage() {
       try {
         await updateTrip(editTrip.id, updateData);
       } catch (errorMessage) {
-        console.log(errorMessage);
+        console.error(errorMessage);
+        // JWTなし/有効期限切れの場合`/login` に遷移させる
+        if (errorMessage instanceof Error) {
+          if (errorMessage.message === "HTTP 401") {
+            navigate("/login", { replace: true });
+            return;
+          }
+        }
         setUpdateError("旅行を編集できませんでした");
         return;
       }
@@ -109,6 +144,13 @@ export default function TripsPage() {
         setTrips(data);
       } catch (errorMessage) {
         console.error(errorMessage);
+        // JWTなし/有効期限切れの場合`/login` に遷移させる
+        if (errorMessage instanceof Error) {
+          if (errorMessage.message === "HTTP 401") {
+            navigate("/login", { replace: true });
+            return;
+          }
+        }
         setUpdateError(
           "旅行を編集しましたが、旅行一覧を取得できませんでした。再度更新せず、ページを再読み込みしてください。",
         );
@@ -131,7 +173,14 @@ export default function TripsPage() {
           setEditTrip(null);
         }
       } catch (errorMessage) {
-        console.log(errorMessage);
+        console.error(errorMessage);
+        // JWTなし/有効期限切れの場合`/login` に遷移させる
+        if (errorMessage instanceof Error) {
+          if (errorMessage.message === "HTTP 401") {
+            navigate("/login", { replace: true });
+            return;
+          }
+        }
         setDeleteError("旅行を削除できませんでした");
         return;
       }
@@ -141,12 +190,35 @@ export default function TripsPage() {
         setTrips(data);
       } catch (errorMessage) {
         console.error(errorMessage);
+        // JWTなし/有効期限切れの場合`/login` に遷移させる
+        if (errorMessage instanceof Error) {
+          if (errorMessage.message === "HTTP 401") {
+            navigate("/login", { replace: true });
+            return;
+          }
+        }
         setDeleteError(
           "指定の旅行を削除しましたが、旅行一覧を取得できませんでした。再度削除せず、ページを再読み込みしてください。",
         );
       }
     } finally {
       setDeletingTripId(null);
+    }
+  }
+
+  async function handleLogout() {
+    if (isLogout) return;
+    setLogoutError(null);
+    setIsLogout(true);
+
+    try {
+      await logoutUser();
+      navigate("/login", { replace: true });
+    } catch (errorMessage) {
+      console.error(errorMessage);
+      setLogoutError("ログアウトできませんでした");
+    } finally {
+      setIsLogout(false);
     }
   }
 
@@ -374,6 +446,17 @@ export default function TripsPage() {
         </form>
       )}
       {createError && <p style={{ color: "red" }}>{createError}</p>}
+
+      <button
+        type="button"
+        onClick={() => {
+          handleLogout();
+        }}
+        disabled={isBusy}
+      >
+        {isLogout ? "ログアウト中..." : "ログアウト"}
+      </button>
+      {logoutError && <p style={{ color: "red" }}>{logoutError}</p>}
     </>
   );
 }
