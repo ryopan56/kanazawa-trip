@@ -1,4 +1,7 @@
-async function request(url: string, options?: RequestInit): Promise<Response> {
+export async function request(
+  url: string,
+  options?: RequestInit,
+): Promise<Response> {
   const response = await fetch(url, options);
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
