@@ -32,3 +32,42 @@ async def get_places(db, tid, user_id):
         .run()
     )
     return place_list.results
+
+
+async def create_place(db, tid, user_id, name, address):
+    result = (
+        await db.prepare("""
+        INSERT INTO places (trip_id, name, address)
+        SELECT ?, ?, ?
+        WHERE EXISTS (
+        SELECT 1
+        FROM trip_users
+        WHERE trip_users.trip_id = ?
+        AND trip_users.user_id = ?)
+        RETURNING id, trip_id, name, address, latitude, longitude
+        """)
+        .bind(tid, name, address, tid, user_id)
+        .run()
+    )
+    if not result.results:
+        return None
+
+    return result.results[0]
+
+
+# こちらの書き方でも実質同じにはなる。しかし、
+# SELECT FROM して抽出した結果が複数存在する場合はその数だけINSERTされる。
+# 今回はtrip_users.trip_id と trip_users.user_id の組み合わせが一意なので
+# 上のコードと同じにはなるが、こちらの意図とは異なるクエリなので不採用。
+# result = (
+#     await db.prepare("""
+#         INSERT INTO places (trip_id, name, address)
+#         SELECT trip_users.trip_id, ?, ?
+#         FROM trip_users
+#         WHERE trip_users.trip_id = ?
+#         AND trip_users.user_id = ?
+#         RETURNING id, trip_id, name, address, latitude, longitude
+#         """)
+#     .bind(name, address, tid, user_id)
+#     .run()
+# )

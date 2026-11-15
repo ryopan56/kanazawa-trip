@@ -6,3 +6,8 @@ export type Place = {
   latitude: number | null;
   longitude: number | null;
 };
+
+export type CreatePlace = {
+  name: string;
+  address?: string | null;
+};

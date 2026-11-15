@@ -369,7 +369,7 @@ export default function TripsPage() {
         }}
         disabled={isBusy}
       >
-        新規旅行
+        {isCreateOpen ? "閉じる" : "新規旅行"}
       </button>
 
       {isCreateOpen && (
