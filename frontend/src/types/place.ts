@@ -11,3 +11,8 @@ export type CreatePlace = {
   name: string;
   address?: string | null;
 };
+
+export type UpdatePlace = {
+  name?: string;
+  address?: string | null;
+};

@@ -1,4 +1,4 @@
-import type { CreatePlace, Place } from "../types/place";
+import type { CreatePlace, Place, UpdatePlace } from "../types/place";
 import { requestJson } from "./client";
 
 export async function getPlaces(tripId: number): Promise<Place[]> {
@@ -17,4 +17,19 @@ export async function createPlace(
     body: JSON.stringify(placeData),
   };
   return requestJson<Place>(`/api/trips/${tripId}/places`, options);
+}
+
+export async function updatePlace(
+  tripId: number,
+  placeId: number,
+  placeData: UpdatePlace,
+): Promise<Place> {
+  const options = {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(placeData),
+  };
+  return requestJson<Place>(`/api/trips/${tripId}/places/${placeId}`, options);
 }

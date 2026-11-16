@@ -71,3 +71,40 @@ async def create_place(db, tid, user_id, name, address):
 #     .bind(name, address, tid, user_id)
 #     .run()
 # )
+
+
+async def update_place(db, tid, updates, user_id, pid):
+    columns = {"name", "address"}
+
+    set_sql_parts = []
+
+    values = []
+
+    for key, value in updates.items():
+        if key not in columns:
+            continue
+
+        set_sql_parts.append(f"{key} = ?")
+        values.append(value)
+
+    values.extend([pid, tid, tid, user_id])
+
+    sql = f"""
+        UPDATE places
+        SET {",".join(set_sql_parts)}
+        WHERE id = ?
+        AND trip_id = ?
+        AND EXISTS (
+        SELECT 1
+        FROM trip_users
+        WHERE trip_users.trip_id = ?
+        AND trip_users.user_id = ?)
+        RETURNING id, trip_id, name, address, latitude, longitude
+        """
+
+    result = await db.prepare(sql).bind(*values).run()
+
+    if not result.results:
+        return None
+
+    return result.results[0]

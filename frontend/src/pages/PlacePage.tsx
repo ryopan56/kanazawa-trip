@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
-import type { Place, CreatePlace } from "../types/place";
-import { createPlace, getPlaces } from "../api/places";
+import type { Place, CreatePlace, UpdatePlace } from "../types/place";
+import { createPlace, getPlaces, updatePlace } from "../api/places";
 
 export default function PlacesPage() {
   const { tid } = useParams();
@@ -20,7 +20,12 @@ export default function PlacesPage() {
     address: "",
   });
 
-  const isBusy = isCreating;
+  const [originalPlace, setOriginalPlace] = useState<Place | null>(null);
+  const [editPlace, setEditPlace] = useState<Place | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const isBusy = isCreating || isUpdating;
 
   useEffect(() => {
     async function loadPlaces() {
@@ -61,10 +66,6 @@ export default function PlacesPage() {
   if (error) {
     return <p>{error}</p>;
   }
-
-  // if (places.length === 0) {
-  //   return <p>場所の登録がありません</p>;
-  // }
 
   async function handleCreateSubmit() {
     setCreateError(null);
@@ -118,6 +119,66 @@ export default function PlacesPage() {
     }
   }
 
+  async function handleUpdateSubmit() {
+    setUpdateError(null);
+    if (!originalPlace || !editPlace) return;
+
+    const placeData: UpdatePlace = {};
+    const oldAddress = originalPlace.address?.trim() || null;
+    const newAddress = editPlace.address?.trim() || null;
+
+    if (originalPlace.name !== editPlace.name) {
+      placeData.name = editPlace.name;
+    }
+    if (oldAddress !== newAddress) {
+      placeData.address = newAddress;
+    }
+    if (Object.keys(placeData).length === 0) {
+      setEditPlace(null);
+      return;
+    }
+
+    setIsUpdating(true);
+
+    try {
+      try {
+        await updatePlace(editPlace.trip_id, editPlace.id, placeData);
+      } catch (errorMessage) {
+        console.error(errorMessage);
+        // JWTなし/有効期限切れの場合`/login` に遷移させる
+        if (errorMessage instanceof Error) {
+          if (errorMessage.message === "HTTP 401") {
+            navigate("/login", { replace: true });
+            return;
+          }
+        }
+        setUpdateError("場所を編集できませんでした");
+        return;
+      }
+
+      try {
+        const data: Place[] = await getPlaces(editPlace.trip_id);
+        setPlaces(data);
+      } catch (errorMessage) {
+        console.error(errorMessage);
+        // JWTなし/有効期限切れの場合`/login` に遷移させる
+        if (errorMessage instanceof Error) {
+          if (errorMessage.message === "HTTP 401") {
+            navigate("/login", { replace: true });
+            return;
+          }
+        }
+        setUpdateError(
+          "場所を編集しましたが、場所一覧を取得できませんでした。再度更新せず、ページを再読み込みしてください。",
+        );
+      } finally {
+        setEditPlace(null);
+      }
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
   return (
     <>
       {places.length === 0 ? (
@@ -128,16 +189,109 @@ export default function PlacesPage() {
             <li key={place.id}>
               {place.name}
               {place.address && `, ${place.address}`}
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => {
+                  setOriginalPlace({ ...place });
+                  setEditPlace({ ...place });
+                  setIsCreateOpen(false);
+                  setUpdateError(null);
+                  setCreateError(null);
+                }}
+              >
+                編集
+              </button>
             </li>
           ))}
         </ul>
       )}
+
+      {editPlace && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleUpdateSubmit();
+          }}
+        >
+          <div>
+            <h3>場所を編集する</h3>
+          </div>
+          <div>
+            <label>
+              場所名：
+              <input
+                type="text"
+                name="name"
+                value={editPlace.name}
+                disabled={isBusy}
+                required
+                onChange={(e) => {
+                  setEditPlace((prev) => {
+                    if (prev !== null) {
+                      return {
+                        ...prev,
+                        name: e.target.value,
+                      };
+                    } else return null;
+                  });
+                }}
+              />
+            </label>
+          </div>
+
+          <div>
+            <label>
+              住所：
+              <input
+                type="text"
+                name="address"
+                value={editPlace.address ?? ""}
+                disabled={isBusy}
+                onChange={(e) => {
+                  setEditPlace((prev) => {
+                    if (prev !== null) {
+                      return {
+                        ...prev,
+                        address: e.target.value,
+                      };
+                    } else return null;
+                  });
+                }}
+              />
+            </label>
+          </div>
+
+          <div>
+            <button type="submit" disabled={isBusy}>
+              {isUpdating ? "更新中" : "更新"}
+            </button>
+          </div>
+
+          <div>
+            <button
+              type="button"
+              onClick={() => {
+                setEditPlace(null);
+                setUpdateError(null);
+              }}
+              disabled={isBusy}
+            >
+              キャンセル
+            </button>
+          </div>
+        </form>
+      )}
+
+      {updateError && <p style={{ color: "red" }}>{updateError}</p>}
 
       <button
         type="button"
         onClick={() => {
           setIsCreateOpen(!isCreateOpen);
           setCreateError(null);
+          setEditPlace(null);
+          setUpdateError(null);
         }}
         disabled={isBusy}
       >
