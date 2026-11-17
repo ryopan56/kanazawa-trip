@@ -20,6 +20,7 @@ export default function TripsPage() {
     end_date: "",
   });
 
+  const [originalEditTrip, setOriginalEditTrip] = useState<Trip | null>(null);
   const [editTrip, setEditTrip] = useState<Trip | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -114,15 +115,25 @@ export default function TripsPage() {
 
   async function handleUpdateSubmit() {
     setUpdateError(null);
-    if (!editTrip) return;
+    if (!originalEditTrip || !editTrip) return;
+
+    const updateData: UpdateTrip = {};
+    if (originalEditTrip.name !== editTrip.name) {
+      updateData.name = editTrip.name;
+    }
+    if (
+      originalEditTrip.start_date !== editTrip.start_date ||
+      originalEditTrip.end_date !== editTrip.end_date
+    ) {
+      updateData.start_date = editTrip.start_date;
+      updateData.end_date = editTrip.end_date;
+    }
+    if (Object.keys(updateData).length === 0) {
+      setEditTrip(null);
+      return;
+    }
 
     setIsUpdating(true);
-
-    const updateData: UpdateTrip = {
-      name: editTrip.name,
-      start_date: editTrip.start_date,
-      end_date: editTrip.end_date,
-    };
 
     try {
       try {
@@ -232,6 +243,7 @@ export default function TripsPage() {
             <button
               type="button"
               onClick={() => {
+                setOriginalEditTrip({ ...trip });
                 setEditTrip({ ...trip });
                 setUpdateError(null);
                 setCreateOpen(false);
@@ -454,7 +466,7 @@ export default function TripsPage() {
       <button
         type="button"
         onClick={() => {
-          handleLogout();
+          void handleLogout();
         }}
         disabled={isBusy}
       >
