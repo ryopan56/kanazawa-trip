@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import type { Place, CreatePlace, UpdatePlace } from "../types/place";
-import { createPlace, getPlaces, updatePlace } from "../api/places";
+import {
+  createPlace,
+  deletePlace,
+  getPlaces,
+  updatePlace,
+} from "../api/places";
 
 export default function PlacesPage() {
   const { tid } = useParams();
@@ -25,7 +30,10 @@ export default function PlacesPage() {
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const isBusy = isCreating || isUpdating;
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletingPlaceId, setDeletingPlaceId] = useState<number | null>(null);
+
+  const isBusy = isCreating || isUpdating || deletingPlaceId !== null;
 
   useEffect(() => {
     async function loadPlaces() {
@@ -179,6 +187,50 @@ export default function PlacesPage() {
     }
   }
 
+  async function handleDelete(placeId: number) {
+    setDeleteError(null);
+    setDeletingPlaceId(placeId);
+
+    try {
+      try {
+        await deletePlace(numericId, placeId);
+        if (placeId === editPlace?.id) {
+          setEditPlace(null);
+        }
+      } catch (errorMessage) {
+        console.error(errorMessage);
+        // JWTなし/有効期限切れの場合`/login` に遷移させる
+        if (errorMessage instanceof Error) {
+          if (errorMessage.message === "HTTP 401") {
+            navigate("/login", { replace: true });
+            return;
+          }
+        }
+        setDeleteError("場所を削除できませんでした");
+        return;
+      }
+
+      try {
+        const data: Place[] = await getPlaces(numericId);
+        setPlaces(data);
+      } catch (errorMessage) {
+        console.error(errorMessage);
+        // JWTなし/有効期限切れの場合`/login` に遷移させる
+        if (errorMessage instanceof Error) {
+          if (errorMessage.message === "HTTP 401") {
+            navigate("/login", { replace: true });
+            return;
+          }
+        }
+        setDeleteError(
+          "場所を削除しましたが、場所一覧を取得できませんでした。再度削除せず、ページを再読み込みしてください。",
+        );
+      }
+    } finally {
+      setDeletingPlaceId(null);
+    }
+  }
+
   return (
     <>
       {places.length === 0 ? (
@@ -198,14 +250,31 @@ export default function PlacesPage() {
                   setIsCreateOpen(false);
                   setUpdateError(null);
                   setCreateError(null);
+                  setDeleteError(null);
                 }}
               >
                 編集
+              </button>
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => {
+                  const confirmed = window.confirm(
+                    `${place.name}を削除しますか？`,
+                  );
+                  if (confirmed) {
+                    void handleDelete(place.id);
+                  }
+                }}
+              >
+                {deletingPlaceId === place.id ? "削除中" : "削除"}
               </button>
             </li>
           ))}
         </ul>
       )}
+
+      {deleteError && <p style={{ color: "red" }}>{deleteError}</p>}
 
       {editPlace && (
         <form
@@ -274,6 +343,7 @@ export default function PlacesPage() {
               onClick={() => {
                 setEditPlace(null);
                 setUpdateError(null);
+                setDeleteError(null);
               }}
               disabled={isBusy}
             >
@@ -292,6 +362,7 @@ export default function PlacesPage() {
           setCreateError(null);
           setEditPlace(null);
           setUpdateError(null);
+          setDeleteError(null);
         }}
         disabled={isBusy}
       >
@@ -302,7 +373,7 @@ export default function PlacesPage() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            handleCreateSubmit();
+            void handleCreateSubmit();
           }}
         >
           <div>

@@ -108,3 +108,22 @@ async def update_place(db, tid, updates, user_id, pid):
         return None
 
     return result.results[0]
+
+
+async def delete_place(db, tid, user_id, pid):
+    result = (
+        await db.prepare("""
+        DELETE FROM places
+        WHERE id = ? AND trip_id = ?
+        AND EXISTS (
+        SELECT 1
+        FROM trip_users
+        WHERE trip_users.trip_id = ?
+        AND trip_users.user_id = ?)
+        RETURNING id
+        """)
+        .bind(pid, tid, tid, user_id)
+        .run()
+    )
+
+    return bool(result.results)

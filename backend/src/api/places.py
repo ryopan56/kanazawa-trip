@@ -1,5 +1,5 @@
 from fastapi import Request, APIRouter, HTTPException, Depends
-from db.places import get_places, create_place, update_place
+from db.places import get_places, create_place, update_place, delete_place
 from schemas.places import PlaceCreate, PlaceUpdate
 from auth.dependencies import get_current_user_id
 
@@ -55,3 +55,14 @@ async def update_place_api(
         raise HTTPException(status_code=404, detail="Place not found")
 
     return updated_data
+
+
+@router.delete("/{pid}", status_code=204)
+async def delete_place_api(
+    tid: int, pid: int, request: Request, user_id: int = Depends(get_current_user_id)
+):
+    env = request.scope["env"]
+    deleted_place = await delete_place(env.DB, tid, user_id, pid)
+
+    if not deleted_place:
+        raise HTTPException(status_code=404, detail="Place not found")

@@ -249,7 +249,7 @@ export default function TripsPage() {
                   `${trip.name}を削除しますか？`,
                 );
                 if (confirmed) {
-                  handleDelete(trip.id);
+                  void handleDelete(trip.id);
                 }
               }}
               disabled={isBusy}
@@ -348,6 +348,8 @@ export default function TripsPage() {
               type="button"
               onClick={() => {
                 setEditTrip(null);
+                setUpdateError(null);
+                setDeleteError(null);
               }}
               disabled={isBusy}
             >
