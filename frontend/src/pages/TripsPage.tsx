@@ -3,6 +3,7 @@ import type { Trip, CreateTrip, UpdateTrip } from "../types/trip";
 import { createTrip, getTrips, updateTrip, deleteTrip } from "../api/trips";
 import { useNavigate } from "react-router";
 import { logoutUser } from "../api/auth";
+import { Link } from "react-router";
 
 export default function TripsPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -248,13 +249,14 @@ export default function TripsPage() {
                   `${trip.name}を削除しますか？`,
                 );
                 if (confirmed) {
-                  handleDelete(trip.id);
+                  void handleDelete(trip.id);
                 }
               }}
               disabled={isBusy}
             >
               {deletingTripId === trip.id ? "削除中" : "削除"}
             </button>
+            <Link to={`/trips/${trip.id}/places`}>場所一覧へ</Link>
           </li>
         ))}
       </ul>
@@ -346,6 +348,8 @@ export default function TripsPage() {
               type="button"
               onClick={() => {
                 setEditTrip(null);
+                setUpdateError(null);
+                setDeleteError(null);
               }}
               disabled={isBusy}
             >
@@ -367,7 +371,7 @@ export default function TripsPage() {
         }}
         disabled={isBusy}
       >
-        新規旅行
+        {isCreateOpen ? "閉じる" : "新規旅行"}
       </button>
 
       {isCreateOpen && (
