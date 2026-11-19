@@ -269,6 +269,7 @@ export default function TripsPage() {
               {deletingTripId === trip.id ? "削除中" : "削除"}
             </button>
             <Link to={`/trips/${trip.id}/places`}>場所一覧へ</Link>
+            <Link to={`/trips/${trip.id}/activities`}>予定一覧へ</Link>
           </li>
         ))}
       </ul>
